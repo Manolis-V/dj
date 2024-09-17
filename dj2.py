@@ -9,6 +9,7 @@ import numpy as np
 from fuzzywuzzy import fuzz
 from tkinter import *
 from csv_conv import *
+import random
 
 # Initialize Pygame mixer
 pygame.mixer.init()
@@ -49,7 +50,7 @@ def load_track1():
         bpm_label1.config(text=f"Bpm: {bpm1}")
 
 def added1(item_data=0):
-    global track1, channel1, started1, is_playing1, start_time1, pause_time1, duration1
+    global track1, channel1, started1, is_playing1, start_time1, pause_time1, duration1, songs_played
     
     track1 = pygame.mixer.Sound("../music-for-the-dj-project/music/"+ pool + "/" + added_song)
 
@@ -73,6 +74,7 @@ def added1(item_data=0):
     if item_data == 0:
         selected_item = tree.selection()
         item_data = tree.item(selected_item, 'values')
+        # song_id = item_data[5]
     # Assuming the file name is in the first column
     bpm1 = item_data[2]  # Adjust the index if file name is in another column
     key1 = item_data[4]
@@ -80,9 +82,11 @@ def added1(item_data=0):
     bpm_label1.config(text=f"Bpm: {bpm1}")
     key_label1.config(text=f"KEY: {key1}")
     dur1.config(text=f"-/{duration1}")
+    songs_played.append(int(item_data[5]))
+    print(songs_played)
 
 def added2(item_data=0):
-    global track2, channel2, started2, is_playing2, pause_time2, start_time2, duration2
+    global track2, channel2, started2, is_playing2, pause_time2, start_time2, duration2, songs_played
 
     track2 = pygame.mixer.Sound("../music-for-the-dj-project/music/"+ pool + "/" + added_song)
     
@@ -104,12 +108,15 @@ def added2(item_data=0):
     if item_data == 0:
         selected_item = tree.selection()
         item_data = tree.item(selected_item, 'values')
+        # song_id = item_data[5]
     bpm2 = item_data[2]  # Adjust the index if file name is in another column
     duration2 = item_data[1]
     key2 = item_data[4]
     bpm_label2.config(text=f"Bpm: {bpm2}")
     key_label2.config(text=f"KEY: {key2}")
     dur2.config(text=f"-/{duration2}")
+    songs_played.append(int(item_data[5]))
+    print(songs_played)
 
 # loads trackes using the folders
 def load_track2():
@@ -130,7 +137,6 @@ def load_track2():
 # Function to handle the crossfade transition
 def trans(mode):
     global is_transitioning
-    print("trans")
     if track1 and track2:
         is_transitioning = True
         
@@ -138,9 +144,11 @@ def trans(mode):
         t1 = threading.Thread(target=lambda: crossfade_trans(mode))
         t1.start()
 
+""" 
+    create a list of the dict's keys and values and
+    returns the key with the max value
+"""  
 def keywithmaxval(d):
-     """ a) create a list of the dict's keys and values; 
-         b) return the key with the max value"""  
      v = list(d.values())
      k = list(d.keys())
      return k[v.index(max(v))]
@@ -179,21 +187,20 @@ def pick_id(bpm_of_the_curr, key_of_the_curr, duration_of_the_curr):
             huristics[song_id] = score
 
     song_id = keywithmaxval(huristics)
-    songs_played.append(song_id)
-    print("The song with highest score: ", song_id)
+    #songs_played.append(song_id)
 
 # loads songs automaticaly after trans
-def pick_song(deck):
+def pick_song(deck, init=1):
     global song_id, added_song
 
-    for child in tree.get_children():
-        if tree.item(child)["values"][0] == added_song:     #finds the song playing
-            item_data = tree.item(child)["values"]
-            break
+    if init == 1:
+        for child in tree.get_children():
+            if tree.item(child)["values"][0] == added_song:     #finds the song playing
+                item_data = tree.item(child)["values"]
+                break
 
-    pick_id(item_data[2], item_data[4], item_data[1])       #sends it to analise and changes song_id
+        pick_id(item_data[2], item_data[4], item_data[1])       #sends it to analise and changes song_id
     if deck == 1:
-        print("deck ", deck)
         for child in tree.get_children():
             if tree.item(child)["values"][5] == song_id:    #searches new song_id
                 item_data = tree.item(child)["values"]
@@ -201,7 +208,6 @@ def pick_song(deck):
                 print("deck: 1, adding song: ", added_song)
                 added1(item_data)
     elif deck == 2:
-        print("deck ", deck)
         for child in tree.get_children():
             if tree.item(child)["values"][5] == song_id:
                 item_data = tree.item(child)["values"]
@@ -296,7 +302,6 @@ def update_time1():
 
     if not is_playing1:
         pause_time1 = curr_time
-        print(pause_time1)
         return
     if channel1.get_busy():
         root.after(250, update_time1)  # Update slider every 500 ms
@@ -323,11 +328,9 @@ def update_time2():
 
     if not is_playing2:
         pause_time2 = curr_time
-        print(pause_time2)
         return
     if channel2.get_busy():
         root.after(250, update_time2)  # Update slider every 500 ms
-
 
 """
     When calling this function it automaticaly pauses/playes, stops/continues time
@@ -544,15 +547,12 @@ def load_csv(mode=0):
         # Define columns and headings
         for header in headers:
             if header == 'File Name':
-                # print(100)
                 tree.heading(header, text=header)
                 tree.column(header, width=300, stretch=False)
             elif header == 'id':
-                # print(110)
                 tree.heading(header, text=header)
                 tree.column(header, width=30, stretch=False)
             else:
-                # print(101)
                 tree.heading(header, text=header)
                 tree.column(header, width=100, stretch=False)
 
@@ -564,10 +564,8 @@ def load_csv(mode=0):
 def on_double_click(event):
     global added_song, added_song_name
     # Get the item selected by the user
-    print(1)
     selected_item = tree.selection()
     if selected_item:
-        print(2)
         # Get the values of the selected row
         item_values = tree.item(selected_item, 'values')
         # Assuming the file name is in the first column
@@ -670,7 +668,14 @@ def auto_play():
     song_id = song_id + 1
 
 def init_songs():
+    global song_id
     automoto()
+    song_id = random.randint(1,77)
+    pick_song(1, 0)
+    song_id = random.randint(1,77)
+    pick_song(2, 0)
+    pause_resume1()
+
 
 def automoto():
     global auto
